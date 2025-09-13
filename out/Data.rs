@@ -20,6 +20,6 @@ impl SessionData {
         return self.CLIENT.clone()
     }
     pub fn getDomen(&self) -> String {
-        return self.CLIENT.clone() + &self.DOMEN;
+        return format!("{}{}", self.CLIENT, self.DOMEN);
     }
 }

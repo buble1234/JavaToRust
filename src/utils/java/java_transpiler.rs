@@ -200,21 +200,41 @@ impl JavaTranspiler {
         let content = content.trim_end_matches(';');
         let parts: Vec<&str> = content.split(" + ").collect();
 
-        if parts.len() == 2 {
-            let first = parts[0].trim();
-            let second = parts[1].trim();
+        if parts.len() >= 2 {
+            let mut format_parts = Vec::new();
+            let mut args = Vec::new();
 
-            let first_is_string = fields.iter().any(|f| f.name == first && f.var_type == "String");
-            let second_is_string = fields.iter().any(|f| f.name == second && f.var_type == "String");
+            for part in parts {
+                let trimmed = part.trim();
 
-            if first_is_string && second_is_string {
-                return format!("return self.{}.clone() + &self.{};", first, second);
+                if trimmed.starts_with('"') && trimmed.ends_with('"') {
+                    format_parts.push(trimmed[1..trimmed.len()-1].to_string());
+                } else if fields.iter().any(|f| f.name == trimmed && f.var_type == "String") {
+                    format_parts.push("{}".to_string());
+                    args.push(format!("self.{}", trimmed));
+                } else if fields.iter().any(|f| f.name == trimmed) {
+                    format_parts.push("{}".to_string());
+                    args.push(format!("self.{}", trimmed));
+                } else if trimmed.starts_with("self.") {
+                    format_parts.push("{}".to_string());
+                    args.push(trimmed.to_string());
+                } else {
+                    format_parts.push("{}".to_string());
+                    args.push(trimmed.to_string());
+                }
+            }
+
+            let format_string = format_parts.join("");
+            if args.is_empty() {
+                return format!("return \"{}\";", format_string);
+            } else {
+                return format!("return format!(\"{}\", {});", format_string, args.join(", "));
             }
         }
 
         line.to_string()
     }
-    
+
     fn convert_print_statement(&self, line: &str) -> String {
         let mut result = line.to_string();
 
@@ -228,32 +248,31 @@ impl JavaTranspiler {
                 };
                 let content = caps.get(2).unwrap().as_str();
 
-                let mut format_str = String::new();
-                let mut args = Vec::new();
-
                 let parts: Vec<&str> = content.split(" + ").collect();
-                for (i, part) in parts.iter().enumerate() {
-                    let trimmed_part = part.trim();
-                    if trimmed_part.starts_with('"') && trimmed_part.ends_with('"') {
-                        format_str.push_str(&trimmed_part[1..trimmed_part.len()-1]);
-                    } else {
-                        format_str.push_str("{}");
-                        if trimmed_part.starts_with("self.") && self.is_string_field(trimmed_part) {
-                            if i == 0 {
-                                args.push(format!("{}.clone()", trimmed_part));
-                            } else {
-                                args.push(format!("&{}", trimmed_part));
-                            }
+                if parts.len() >= 2 {
+                    let mut format_parts = Vec::new();
+                    let mut args = Vec::new();
+
+                    for part in parts {
+                        let trimmed = part.trim();
+
+                        if trimmed.starts_with('"') && trimmed.ends_with('"') {
+                            format_parts.push(trimmed[1..trimmed.len()-1].to_string());
+                        } else if trimmed.starts_with("self.") {
+                            format_parts.push("{}".to_string());
+                            args.push(trimmed.to_string());
                         } else {
-                            args.push(trimmed_part.to_string());
+                            format_parts.push("{}".to_string());
+                            args.push(format!("self.{}", trimmed));
                         }
                     }
-                }
 
-                if args.is_empty() {
-                    result = format!("{}!(\"{}\");", macro_name, format_str);
-                } else {
-                    result = format!("{}!(\"{}\", {});", macro_name, format_str, args.join(", "));
+                    let format_string = format_parts.join("");
+                    if args.is_empty() {
+                        result = format!("{}!(\"{}\");", macro_name, format_string);
+                    } else {
+                        result = format!("{}!(\"{}\", {});", macro_name, format_string, args.join(", "));
+                    }
                 }
             }
         } else {
@@ -263,7 +282,7 @@ impl JavaTranspiler {
 
         result
     }
-    
+
     fn is_string_field(&self, field_name: &str) -> bool {
         field_name.to_uppercase().contains("STRING") ||
             field_name.to_uppercase().contains("NAME") ||
