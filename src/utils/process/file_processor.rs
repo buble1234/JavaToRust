@@ -1,50 +1,52 @@
 use std::fs;
 use std::path::Path;
-
-use crate::utils::java::java_transpiler::JavaTranspiler;
+use std::time::Instant;
+use crate::utils::java::transpiler::JavaTranspiler;
+use crate::utils::dir::dir_utils::{create_output_dir, check_input_dir};
 
 pub struct FileProcessor {
-    transpiler: JavaTranspiler,
+    t: JavaTranspiler,
 }
 
 impl FileProcessor {
     pub fn new() -> Self {
-        Self {
-            transpiler: JavaTranspiler::new(),
-        }
+        Self { t: JavaTranspiler::new() }
     }
 
-    pub fn process_directory(&self, input_dir: &Path) {
-        if let Ok(entries) = fs::read_dir(input_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-
-                if self.is_java_file(&path) {
-                    self.process_java_file(&path);
+    pub fn process_directory(&self, p: &Path) {
+        if !check_input_dir(p) { return; }
+        create_output_dir("out");
+        if let Ok(es) = fs::read_dir(p) {
+            for e in es.flatten() {
+                let q = e.path();
+                if q.is_dir() {
+                    self.process_directory(&q);
+                } else if self.is_java(&q) {
+                    self.proc_java(&q);
                 }
             }
         }
     }
 
-    fn is_java_file(&self, path: &Path) -> bool {
-        path.extension().and_then(|s| s.to_str()) == Some("java")
+    fn is_java(&self, p: &Path) -> bool {
+        p.extension().and_then(|s| s.to_str()) == Some("java")
     }
 
-    fn process_java_file(&self, path: &Path) {
-        let file_name = path.file_stem().unwrap().to_str().unwrap();
-        let output_path = format!("out/{}.rs", file_name);
-
-        match fs::read_to_string(path) {
-            Ok(java_code) => {
-                let rust_code = self.transpiler.transpile_java_to_rust(&java_code, file_name);
-
-                if let Err(e) = fs::write(&output_path, rust_code) {
-                    eprintln!("Ошибка записи файла {}: {}", output_path, e);
-                } else {
-                    println!("Успешно преобразован: {} -> {}", path.display(), output_path);
-                }
+    fn proc_java(&self, p: &Path) {
+        let name = p.file_stem().unwrap().to_str().unwrap();
+        let out = format!("out/{}.rs", name);
+        let start = Instant::now();
+        if let Ok(src) = fs::read_to_string(p) {
+            let rs = self.t.transpile_java_to_rust(&src, name);
+            let dt = start.elapsed().as_secs_f64();
+            if fs::write(&out, rs).is_ok() {
+                println!("ок: {} -> {} [{:.3}s]", p.display(), out, dt);
+            } else {
+                println!("ошибка записи: {} -> {} [{:.3}s]", p.display(), out, dt);
             }
-            Err(e) => eprintln!("Ошибка чтения файла {}: {}", path.display(), e),
+        } else {
+            let dt = start.elapsed().as_secs_f64();
+            println!("ошибка чтения: {} [{:.3}s]", p.display(), dt);
         }
     }
 }

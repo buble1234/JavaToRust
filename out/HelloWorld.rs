@@ -1,8 +1,11 @@
-pub struct HelloWorld {
+pub struct HelloWorld
+{
 }
 
-impl HelloWorld {
-    pub fn main(args: &[&str]) {
-        println!("Hello, World!");
+impl HelloWorld
+{
+    pub fn main(args: &[&str])
+    {
+        println!("{}", "Hello, World!".to_string().to_string());
     }
 }

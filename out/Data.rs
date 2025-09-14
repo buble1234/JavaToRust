@@ -1,25 +1,32 @@
-pub struct SessionData {
-    pub USERNAME: String,
-    pub UID: i32,
-    pub HWID: String,
-    pub CLIENT: String,
-    pub DOMEN: String,
+pub struct SessionData
+{
 }
 
-impl SessionData {
-    pub fn getUsername(&self) -> String {
-        return self.USERNAME.clone()
+impl SessionData
+{
+    pub const USERNAME: &'static str = "NoCap";
+    pub const UID: i32 = 1;
+    pub const HWID: &'static str = "-";
+    pub const CLIENT: &'static str = "Taksa";
+    pub const DOMEN: &'static str = ".pw";
+    pub fn getUsername() -> String
+    {
+        return Self::USERNAME.to_string();
     }
-    pub fn getUid(&self) -> i32 {
-        return self.UID
+    pub fn getUid() -> i32
+    {
+        return Self::UID;
     }
-    pub fn getHwid(&self) -> String {
-        return self.HWID.clone()
+    pub fn getHwid() -> String
+    {
+        return Self::HWID.to_string();
     }
-    pub fn getClient(&self) -> String {
-        return self.CLIENT.clone()
+    pub fn getClient() -> String
+    {
+        return Self::CLIENT.to_string();
     }
-    pub fn getDomen(&self) -> String {
-        return format!("{}{}", self.CLIENT, self.DOMEN);
+    pub fn getDomen() -> String
+    {
+        return format!("{}{}", Self::CLIENT, Self::DOMEN);
     }
 }
